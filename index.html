@@ -15,22 +15,35 @@
             padding: 20px;
         }
 
+        .upload-box {
+            width: 320px;
+            padding: 15px;
+            background: #333;
+            border-radius: 10px;
+            border: 2px solid #444;
+        }
+
+        .preview-img {
+            width: 100%;
+            max-height: 320px;
+            object-fit: contain;
+            border-radius: 10px;
+            margin-top: 10px;
+            display: none;
+        }
+
         .container {
             display: flex;
             justify-content: center;
             gap: 30px;
-            margin-top: 25px;
-        }
-
-        img {
-            max-width: 320px;
-            border-radius: 10px;
-            border: 2px solid #444;
+            margin-top: 20px;
+            flex-wrap: wrap;
         }
 
         canvas {
             border-radius: 10px;
             border: 2px solid #444;
+            margin-top: 20px;
         }
 
         button {
@@ -43,54 +56,116 @@
             border-radius: 6px;
             cursor: pointer;
         }
+
+        /* LOADING */
+        #loadingOverlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+            font-size: 20px;
+            z-index: 9999;
+            visibility: hidden;
+        }
+
+        .spinner {
+            border: 6px solid #555;
+            border-top: 6px solid #00aaff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 
 <body>
 
-    <h1>Face Swap (Foto ke Foto)</h1>
-    <p>Upload 2 foto — deteksi wajah & tukar wajah otomatis.</p>
+<!-- Loading Overlay -->
+<div id="loadingOverlay">
+    <div class="spinner"></div>
+    <span id="loadingText">Processing...</span>
+</div>
 
-    <div>
-        <input type="file" id="img1Input">
-        <input type="file" id="img2Input">
+<h1>Face Swap (Foto ke Foto)</h1>
+<p>Upload 2 foto — deteksi wajah & tukar wajah otomatis.</p>
+
+<div class="container">
+
+    <!-- FOTO TARGET -->
+    <div class="upload-box">
+        <h3>Foto Target (yang ingin diubah)</h3>
+        <input type="file" id="img1Input" accept="image/*">
+        <img id="img1" class="preview-img">
     </div>
 
-    <div class="container">
-        <div>
-            <h3>Foto Target (yang ingin diubah)</h3>
-            <img id="img1" />
-        </div>
-
-        <div>
-            <h3>Foto Donor (wajah pengganti)</h3>
-            <img id="img2" />
-        </div>
+    <!-- FOTO DONOR -->
+    <div class="upload-box">
+        <h3>Foto Donor (wajah pengganti)</h3>
+        <input type="file" id="img2Input" accept="image/*">
+        <img id="img2" class="preview-img">
     </div>
 
-    <button id="swapBtn">Tukar Wajah</button>
+</div>
 
-    <h2>Hasil:</h2>
-    <canvas id="output"></canvas>
+<button id="swapBtn">Tukar Wajah</button>
+
+<h2>Hasil:</h2>
+<canvas id="output"></canvas>
 
 <script>
-    // Load model-model face-api.js
-    Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models"),
-        faceapi.nets.faceLandmark68Net.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models"),
-        faceapi.nets.faceRecognitionNet.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models"),
-        faceapi.nets.faceExpressionNet.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models")
-    ]).then(() => console.log("Model Loaded"));
 
-    function loadImage(input, imgElement) {
+    /* ==================== LOADING ==================== */
+    function showLoading(text = "Processing...") {
+        document.getElementById("loadingText").innerText = text;
+        document.getElementById("loadingOverlay").style.visibility = "visible";
+    }
+
+    function hideLoading() {
+        document.getElementById("loadingOverlay").style.visibility = "hidden";
+    }
+
+    /* ==================== LOAD MODELS ==================== */
+    async function loadModels() {
+        showLoading("Loading AI Models...");
+        await Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models"),
+            faceapi.nets.faceLandmark68Net.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models"),
+            faceapi.nets.faceRecognitionNet.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models"),
+            faceapi.nets.faceExpressionNet.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models")
+        ]);
+        hideLoading();
+    }
+
+    loadModels();
+
+    /* ==================== PREVIEW FOTO ==================== */
+    function previewImage(input, imgElement) {
         input.addEventListener("change", () => {
-            imgElement.src = URL.createObjectURL(input.files[0]);
+            if (input.files && input.files[0]) {
+                imgElement.src = URL.createObjectURL(input.files[0]);
+                imgElement.style.display = "block";
+            }
         });
     }
 
-    loadImage(document.getElementById("img1Input"), document.getElementById("img1"));
-    loadImage(document.getElementById("img2Input"), document.getElementById("img2"));
+    previewImage(document.getElementById("img1Input"), document.getElementById("img1"));
+    previewImage(document.getElementById("img2Input"), document.getElementById("img2"));
 
+    /* ==================== PROSES SWAP ==================== */
     document.getElementById("swapBtn").onclick = async () => {
 
         const img1 = document.getElementById("img1");
@@ -101,19 +176,19 @@
             return;
         }
 
-        // Deteksi wajah
+        showLoading("Mendeteksi wajah...");
+
         const det1 = await faceapi.detectAllFaces(img1, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
         const det2 = await faceapi.detectAllFaces(img2, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
 
         if (!det1.length || !det2.length) {
+            hideLoading();
             alert("Tidak menemukan wajah pada salah satu foto!");
             return;
         }
 
-        console.log("Jumlah wajah pada foto 1:", det1.length);
-        console.log("Jumlah wajah pada foto 2:", det2.length);
+        showLoading("Melakukan face swap...");
 
-        // Untuk demo: ambil wajah pertama saja
         const face1 = det1[0];
         const face2 = det2[0];
 
@@ -124,20 +199,21 @@
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img1, 0, 0, img1.width, img1.height);
 
-        // Face Swap Sederhana Menggunakan Transformasi Segitiga (Warping)
-        faceapi.draw.drawFaceLandmarks(canvas, [face1]); // optional debug
+        const donorFace = await faceapi.extractFaces(img2, [face2.detection]);
 
-        // ======= PROSES UTAMA (WARPING) =======
-        const alignedFace = await faceapi.extractFaces(img2, [face2.detection]);
-        if (alignedFace.length > 0) {
-            ctx.drawImage(alignedFace[0], 
-                face1.detection.box.x, 
-                face1.detection.box.y, 
-                face1.detection.box.width, 
+        if (donorFace.length > 0) {
+            ctx.drawImage(
+                donorFace[0],
+                face1.detection.box.x,
+                face1.detection.box.y,
+                face1.detection.box.width,
                 face1.detection.box.height
             );
         }
+
+        hideLoading();
     };
+
 </script>
 
 </body>
