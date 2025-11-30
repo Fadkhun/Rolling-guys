@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Wajib untuk mobile -->
     <title>Face Swap App</title>
 
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
@@ -12,52 +13,70 @@
             background: #222;
             color: white;
             text-align: center;
-            padding: 20px;
+            padding: 15px;
         }
 
+        h1 {
+            font-size: 26px;
+        }
+
+        p {
+            font-size: 15px;
+        }
+
+        /* ========== Upload Card ========== */
         .upload-box {
-            width: 320px;
+            width: 330px;
+            max-width: 100%;
             padding: 15px;
             background: #333;
             border-radius: 10px;
             border: 2px solid #444;
+            margin-bottom: 20px;
         }
 
         .preview-img {
             width: 100%;
-            max-height: 320px;
+            max-height: 350px;
             object-fit: contain;
             border-radius: 10px;
             margin-top: 10px;
             display: none;
         }
 
+        /* ========== Flex Container ========== */
         .container {
             display: flex;
             justify-content: center;
             gap: 30px;
             margin-top: 20px;
-            flex-wrap: wrap;
+            flex-wrap: wrap;   /* <-- Mobile akan otomatis turun ke bawah */
         }
 
         canvas {
             border-radius: 10px;
             border: 2px solid #444;
             margin-top: 20px;
+            width: 100%;
+            max-width: 360px;
         }
 
         button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            border: none;
+            margin-top: 15px;
+            padding: 12px 25px;
             background: #00aaff;
             color: white;
-            font-size: 16px;
-            border-radius: 6px;
+            border-radius: 8px;
+            border: none;
+            font-size: 18px;
             cursor: pointer;
         }
 
-        /* LOADING */
+        button:active {
+            transform: scale(0.96);
+        }
+
+        /* ========== LOADING OVERLAY ========== */
         #loadingOverlay {
             position: fixed;
             top: 0; left: 0;
@@ -88,6 +107,32 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        /* ========== MOBILE RESPONSIVE ========== */
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 22px;
+            }
+
+            .container {
+                gap: 15px;
+            }
+
+            .upload-box {
+                width: 100%;
+                margin-bottom: 15px;
+            }
+
+            button {
+                width: 100%;
+                font-size: 17px;
+                padding: 14px;
+            }
+
+            canvas {
+                max-width: 100%;
+            }
         }
     </style>
 </head>
@@ -171,7 +216,7 @@
         const img1 = document.getElementById("img1");
         const img2 = document.getElementById("img2");
 
-        if (!img1.src || !img2.src) {
+        if (!img1.src || !img2.src || img1.style.display === "none" || img2.style.display === "none") {
             alert("Ayang, upload 2 foto dulu ya!");
             return;
         }
