@@ -1,265 +1,416 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Wajib untuk mobile -->
-    <title>Face Swap App</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Face Swap — Mobile Friendly & Robust</title>
 
-    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <!-- face-api.js (CDN). Jika ingin pakai model lokal, lihat catatan di akhir. -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
 
-    <style>
-        body {
-            font-family: Arial;
-            background: #222;
-            color: white;
-            text-align: center;
-            padding: 15px;
-        }
+  <style>
+    :root{
+      --bg:#121217;
+      --card:#1e1f26;
+      --muted:#9aa0a6;
+      --accent:#00aaff;
+    }
+    html,body{height:100%;margin:0;background:var(--bg);color:#fff;font-family:Inter,system-ui,Arial;}
+    .wrap{max-width:980px;margin:18px auto;padding:14px;}
+    header{display:flex;align-items:center;gap:12px;justify-content:space-between}
+    header h1{font-size:20px;margin:0}
+    .top-controls{display:flex;gap:8px;align-items:center}
+    .status-inline{font-size:13px;color:var(--muted)}
 
-        h1 {
-            font-size: 26px;
-        }
+    /* layout */
+    .grid{display:flex;gap:18px;margin-top:18px;flex-wrap:wrap;justify-content:center}
+    .card{background:var(--card);border-radius:12px;padding:12px;min-width:280px;max-width:420px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.03)}
+    .card h3{margin:0 0 10px 0;font-size:15px}
+    .file-row{display:flex;gap:8px;align-items:center}
+    input[type="file"]{flex:1}
+    .preview{width:100%;height:320px;background:#0f1114;border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px dashed rgba(255,255,255,0.04)}
+    .preview img{width:100%;height:100%;object-fit:contain;display:block}
+    .muted{color:var(--muted);font-size:13px;margin-top:8px}
 
-        p {
-            font-size: 15px;
-        }
+    /* canvas result */
+    .result-area{margin-top:18px;text-align:center}
+    canvas{max-width:100%;border-radius:10px;border:1px solid rgba(255,255,255,0.06)}
 
-        /* ========== Upload Card ========== */
-        .upload-box {
-            width: 330px;
-            max-width: 100%;
-            padding: 15px;
-            background: #333;
-            border-radius: 10px;
-            border: 2px solid #444;
-            margin-bottom: 20px;
-        }
+    /* buttons */
+    button{background:var(--accent);color:#fff;padding:12px 16px;border-radius:10px;border:none;font-size:15px;cursor:pointer}
+    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06)}
 
-        .preview-img {
-            width: 100%;
-            max-height: 350px;
-            object-fit: contain;
-            border-radius: 10px;
-            margin-top: 10px;
-            display: none;
-        }
+    /* overlay loading */
+    #overlay{
+      position:fixed;left:0;top:0;width:100vw;height:100vh;
+      display:flex;align-items:center;justify-content:center;z-index:9999;
+      background:linear-gradient(180deg,rgba(0,0,0,0.55),rgba(0,0,0,0.75));
+      visibility:hidden;opacity:0;transition:opacity .18s;
+    }
+    #overlay.show{visibility:visible;opacity:1}
+    .loader-card{background:rgba(18,18,23,0.95);padding:18px;border-radius:12px;min-width:260px;text-align:center;border:1px solid rgba(255,255,255,0.04)}
+    .spinner{width:56px;height:56px;border-radius:50%;border:6px solid rgba(255,255,255,0.08);border-top-color:var(--accent);animation:spin 1s linear infinite;margin:0 auto 12px}
+    @keyframes spin{to{transform:rotate(360deg)}}
 
-        /* ========== Flex Container ========== */
-        .container {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin-top: 20px;
-            flex-wrap: wrap;   /* <-- Mobile akan otomatis turun ke bawah */
-        }
+    .status-log{font-family:monospace;background:#0b0b0d;padding:8px;border-radius:8px;margin-top:8px;color:#cfd8dc;font-size:12px;line-height:1.4;max-height:120px;overflow:auto}
 
-        canvas {
-            border-radius: 10px;
-            border: 2px solid #444;
-            margin-top: 20px;
-            width: 100%;
-            max-width: 360px;
-        }
-
-        button {
-            margin-top: 15px;
-            padding: 12px 25px;
-            background: #00aaff;
-            color: white;
-            border-radius: 8px;
-            border: none;
-            font-size: 18px;
-            cursor: pointer;
-        }
-
-        button:active {
-            transform: scale(0.96);
-        }
-
-        /* ========== LOADING OVERLAY ========== */
-        #loadingOverlay {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(4px);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            color: white;
-            font-size: 20px;
-            z-index: 9999;
-            visibility: hidden;
-        }
-
-        .spinner {
-            border: 6px solid #555;
-            border-top: 6px solid #00aaff;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
-            margin-bottom: 15px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* ========== MOBILE RESPONSIVE ========== */
-        @media (max-width: 480px) {
-            h1 {
-                font-size: 22px;
-            }
-
-            .container {
-                gap: 15px;
-            }
-
-            .upload-box {
-                width: 100%;
-                margin-bottom: 15px;
-            }
-
-            button {
-                width: 100%;
-                font-size: 17px;
-                padding: 14px;
-            }
-
-            canvas {
-                max-width: 100%;
-            }
-        }
-    </style>
+    /* responsive mobile tweaks */
+    @media (max-width:640px){
+      .grid{flex-direction:column;gap:12px}
+      .preview{height:300px}
+      header h1{font-size:18px}
+      button{width:100%}
+    }
+  </style>
 </head>
-
 <body>
+  <div class="wrap">
+    <header>
+      <h1>Ayang — Face Swap (Mobile friendly)</h1>
+      <div class="top-controls">
+        <div class="status-inline" id="smallStatus">Ready</div>
+      </div>
+    </header>
 
-<!-- Loading Overlay -->
-<div id="loadingOverlay">
-    <div class="spinner"></div>
-    <span id="loadingText">Processing...</span>
-</div>
+    <p class="muted">Upload <strong>Foto Target</strong> (yang mau diganti) dan <strong>Foto Donor</strong> (wajah pengganti). Lalu tekan <em>Tukar Wajah</em>. Jangan buka file via <code>file://</code>.</p>
 
-<h1>Face Swap (Foto ke Foto)</h1>
-<p>Upload 2 foto — deteksi wajah & tukar wajah otomatis.</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+      <button id="loadModelsBtn">Load Models</button>
+      <button id="retryBtn" class="btn-ghost">Retry Load Models</button>
+      <div style="flex:1"></div>
+      <div style="text-align:right">
+        <div style="font-size:13px;color:var(--muted)">Serve via <code>http://</code> (required)</div>
+      </div>
+    </div>
 
-<div class="container">
-
-    <!-- FOTO TARGET -->
-    <div class="upload-box">
+    <div class="grid" style="margin-top:12px;">
+      <div class="card">
         <h3>Foto Target (yang ingin diubah)</h3>
-        <input type="file" id="img1Input" accept="image/*">
-        <img id="img1" class="preview-img">
-    </div>
+        <div class="file-row">
+          <input id="img1Input" type="file" accept="image/*">
+        </div>
+        <div class="preview" id="preview1"><div class="muted">Belum ada foto</div></div>
+        <div class="muted" id="preview1Info">—</div>
+      </div>
 
-    <!-- FOTO DONOR -->
-    <div class="upload-box">
+      <div class="card">
         <h3>Foto Donor (wajah pengganti)</h3>
-        <input type="file" id="img2Input" accept="image/*">
-        <img id="img2" class="preview-img">
+        <div class="file-row">
+          <input id="img2Input" type="file" accept="image/*">
+        </div>
+        <div class="preview" id="preview2"><div class="muted">Belum ada foto</div></div>
+        <div class="muted" id="preview2Info">—</div>
+      </div>
     </div>
 
-</div>
+    <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap;">
+      <button id="swapBtn">Tukar Wajah</button>
+      <button id="clearBtn" class="btn-ghost">Bersihkan</button>
+      <div style="flex:1"></div>
+      <div style="font-size:13px;color:var(--muted);align-self:center">Models status: <strong id="modelsStatus">not loaded</strong></div>
+    </div>
 
-<button id="swapBtn">Tukar Wajah</button>
+    <div class="result-area">
+      <h3>Hasil</h3>
+      <canvas id="outputCanvas"></canvas>
+      <div class="status-log" id="logArea">Log: siap.</div>
+    </div>
+  </div>
 
-<h2>Hasil:</h2>
-<canvas id="output"></canvas>
+  <!-- overlay loading -->
+  <div id="overlay">
+    <div class="loader-card">
+      <div class="spinner"></div>
+      <div id="overlayText">Memulai...</div>
+      <div style="margin-top:10px;font-size:13px;color:var(--muted)">Jika loading lama, cek konsol (F12) atau tekan Retry.</div>
+      <div style="margin-top:8px"><button id="overlayClose" class="btn-ghost">Tutup</button></div>
+    </div>
+  </div>
 
 <script>
+  // Nama panggilan
+  const AYANG = "Ayang";
 
-    /* ==================== LOADING ==================== */
-    function showLoading(text = "Processing...") {
-        document.getElementById("loadingText").innerText = text;
-        document.getElementById("loadingOverlay").style.visibility = "visible";
+  // UI elements
+  const overlay = document.getElementById('overlay');
+  const overlayText = document.getElementById('overlayText');
+  const overlayClose = document.getElementById('overlayClose');
+  const modelsStatus = document.getElementById('modelsStatus');
+  const smallStatus = document.getElementById('smallStatus');
+  const logArea = document.getElementById('logArea');
+  const loadModelsBtn = document.getElementById('loadModelsBtn');
+  const retryBtn = document.getElementById('retryBtn');
+  const swapBtn = document.getElementById('swapBtn');
+  const clearBtn = document.getElementById('clearBtn');
+
+  const preview1 = document.getElementById('preview1');
+  const preview2 = document.getElementById('preview2');
+  const preview1Info = document.getElementById('preview1Info');
+  const preview2Info = document.getElementById('preview2Info');
+
+  const img1Input = document.getElementById('img1Input');
+  const img2Input = document.getElementById('img2Input');
+
+  const canvas = document.getElementById('outputCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // helper functions
+  function log(msg){
+    console.log(msg);
+    const time = new Date().toLocaleTimeString();
+    logArea.textContent = `[${time}] ${msg}\n` + logArea.textContent;
+  }
+  function setSmallStatus(text){ smallStatus.textContent = text; }
+  function showOverlay(text){ overlayText.textContent = text; overlay.classList.add('show'); }
+  function hideOverlay(){ overlay.classList.remove('show'); }
+  overlayClose.onclick = hideOverlay;
+
+  // detect file:// usage
+  function checkFileProtocol(){
+    if(location.protocol === 'file:'){
+      modelsStatus.textContent = 'error - file:// not supported';
+      setSmallStatus('Buka via http(s). Lihat instruksi.');
+      log('Terdeteksi file:// — jalankan server lokal, mis. `python -m http.server 8000` dan buka http://localhost:8000');
+      alert(AYANG + ', jangan buka file langsung (file://). Jalankan server lokal. Aku sudah menulis instruksi di console/log.');
+      return false;
+    }
+    return true;
+  }
+
+  // MODEL LOADING with timeout support
+  let MODELS_LOADED = false;
+  async function loadModelsWithTimeout(timeoutMs = 60000){
+    if(!checkFileProtocol()) return Promise.reject(new Error('file protocol not allowed'));
+
+    modelsStatus.textContent = 'loading...';
+    setSmallStatus('Memuat model...');
+    showOverlay('Memuat model AI...');
+
+    const modelBase = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models'; // remote CDN
+    const loadPromises = [
+      faceapi.nets.tinyFaceDetector.loadFromUri(modelBase),
+      faceapi.nets.faceLandmark68Net.loadFromUri(modelBase),
+      faceapi.nets.faceRecognitionNet.loadFromUri(modelBase),
+      faceapi.nets.faceExpressionNet.loadFromUri(modelBase)
+    ];
+
+    const timeoutPromise = new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), timeoutMs));
+
+    try{
+      await Promise.race([Promise.all(loadPromises), timeoutPromise]);
+      MODELS_LOADED = true;
+      modelsStatus.textContent = 'loaded';
+      setSmallStatus('Models loaded');
+      log('Models berhasil dimuat.');
+      hideOverlay();
+      return true;
+    }catch(err){
+      MODELS_LOADED = false;
+      modelsStatus.textContent = 'failed';
+      setSmallStatus('Model gagal dimuat');
+      log('Error loading models: ' + err.message);
+      showOverlay('Gagal memuat model: ' + err.message + '\nPeriksa koneksi atau jalankan model lokal. Tekan Retry untuk coba lagi.');
+      throw err;
+    }
+  }
+
+  // UI: load models button
+  loadModelsBtn.onclick = async () => {
+    try{
+      await loadModelsWithTimeout(90000);
+    }catch(e){
+      // already handled in function
+    }
+  };
+  retryBtn.onclick = async () => {
+    log('User requested retry loading models');
+    try{ await loadModelsWithTimeout(90000); }catch(e){}
+  };
+
+  // Preview handlers (ensures image fully loaded before use)
+  function createImgElementFromFile(file, previewContainer, infoEl){
+    return new Promise((resolve,reject)=>{
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        // clear preview container
+        previewContainer.innerHTML = '';
+        img.style.maxWidth = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'contain';
+        previewContainer.appendChild(img);
+
+        infoEl.textContent = `${file.name} — ${img.naturalWidth}×${img.naturalHeight}px`;
+        resolve(img);
+        // release object URL later if needed
+        // URL.revokeObjectURL(url);
+      };
+      img.onerror = (e)=>{ reject(e); };
+      img.src = url;
+    });
+  }
+
+  let targetImageElement = null;
+  let donorImageElement = null;
+
+  img1Input.addEventListener('change', async (ev)=>{
+    if(!ev.target.files || !ev.target.files[0]) return;
+    showOverlay('Memuat preview foto target...');
+    try{
+      targetImageElement = await createImgElementFromFile(ev.target.files[0], preview1, preview1Info);
+      log('Preview target siap: ' + ev.target.files[0].name);
+    }catch(e){
+      log('Gagal load preview target: ' + e);
+      alert('Gagal memuat preview target.');
+    }finally{ hideOverlay(); }
+  });
+
+  img2Input.addEventListener('change', async (ev)=>{
+    if(!ev.target.files || !ev.target.files[0]) return;
+    showOverlay('Memuat preview foto donor...');
+    try{
+      donorImageElement = await createImgElementFromFile(ev.target.files[0], preview2, preview2Info);
+      log('Preview donor siap: ' + ev.target.files[0].name);
+    }catch(e){
+      log('Gagal load preview donor: ' + e);
+      alert('Gagal memuat preview donor.');
+    }finally{ hideOverlay(); }
+  });
+
+  // Clear
+  clearBtn.onclick = ()=>{
+    preview1.innerHTML = '<div class="muted">Belum ada foto</div>';
+    preview2.innerHTML = '<div class="muted">Belum ada foto</div>';
+    preview1Info.textContent = '—';
+    preview2Info.textContent = '—';
+    targetImageElement = null;
+    donorImageElement = null;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    log('UI dibersihkan.');
+  };
+
+  // Main swap function (simple bounding box paste with basic mask)
+  swapBtn.onclick = async ()=>{
+    if(!MODELS_LOADED){
+      alert(AYANG + ', model belum dimuat. Tekan "Load Models" dulu.');
+      return;
+    }
+    if(!targetImageElement || !donorImageElement){
+      alert(AYANG + ', upload kedua foto dulu ya.');
+      return;
     }
 
-    function hideLoading() {
-        document.getElementById("loadingOverlay").style.visibility = "hidden";
+    try{
+      showOverlay('Mendeteksi wajah target...');
+      setSmallStatus('Mendeteksi wajah target');
+      // detect faces and landmarks
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.5 });
+
+      const tDetections = await faceapi.detectAllFaces(targetImageElement, options).withFaceLandmarks();
+      log(`Target faces found: ${tDetections.length}`);
+      if(!tDetections.length){
+        hideOverlay(); alert('Tidak menemukan wajah di foto target. Coba foto lain.'); return;
+      }
+
+      showOverlay('Mendeteksi wajah donor...');
+      setSmallStatus('Mendeteksi wajah donor');
+
+      const dDetections = await faceapi.detectAllFaces(donorImageElement, options).withFaceLandmarks();
+      log(`Donor faces found: ${dDetections.length}`);
+      if(!dDetections.length){
+        hideOverlay(); alert('Tidak menemukan wajah di foto donor. Coba foto lain.'); return;
+      }
+
+      showOverlay('Menyiapkan hasil...');
+      setSmallStatus('Melakukan face swap');
+
+      // For simplicity: map donor[0] to target[0], but we draw multiple if needed in future
+      const faceTarget = tDetections[0];
+      const faceDonor = dDetections[0];
+
+      // Ensure canvas sized to natural size of target
+      canvas.width = targetImageElement.naturalWidth;
+      canvas.height = targetImageElement.naturalHeight;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      // draw base target
+      ctx.drawImage(targetImageElement, 0, 0, canvas.width, canvas.height);
+
+      // Extract donor face as image (using faceapi.extractFaces if supported)
+      // fallback: draw donor onto temp canvas and crop by donor detection box
+      const dbox = faceDonor.detection.box;
+      const temp = document.createElement('canvas');
+      temp.width = dbox.width; temp.height = dbox.height;
+      const tctx = temp.getContext('2d');
+      // draw donorImage at scaled coordinates (donor's detection box may be relative to natural size)
+      // compute scale factors
+      const dw = donorImageElement.naturalWidth;
+      const dh = donorImageElement.naturalHeight;
+      // draw region
+      tctx.drawImage(donorImageElement, dbox.x, dbox.y, dbox.width, dbox.height, 0, 0, dbox.width, dbox.height);
+
+      // Optional: create rounded mask to blend (simple approach)
+      const mask = document.createElement('canvas');
+      mask.width = dbox.width; mask.height = dbox.height;
+      const mctx = mask.getContext('2d');
+      mctx.fillStyle = 'black'; mctx.fillRect(0,0,mask.width,mask.height);
+      mctx.globalCompositeOperation = 'destination-in';
+      // draw ellipse mask
+      mctx.beginPath();
+      mctx.ellipse(mask.width/2, mask.height/2, mask.width*0.55, mask.height*0.7, 0, 0, Math.PI*2);
+      mctx.fill();
+
+      // apply mask to donor cropped face
+      const donorImg = new Image();
+      donorImg.src = temp.toDataURL();
+      await new Promise((res)=>donorImg.onload = res);
+
+      // create offscreen to hold blended donor
+      const blended = document.createElement('canvas');
+      blended.width = dbox.width; blended.height = dbox.height;
+      const bctx = blended.getContext('2d');
+      // draw donor
+      bctx.drawImage(donorImg, 0, 0);
+      // apply mask by compositing: draw mask as globalAlpha for bleed
+      bctx.globalCompositeOperation = 'destination-in';
+      bctx.drawImage(mask, 0, 0);
+
+      // compute where to place: use target box
+      const tbox = faceTarget.detection.box;
+
+      // scale donor area to fit target box
+      ctx.save();
+      // Optional smoothing
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      // draw blended donor into target box
+      ctx.drawImage(blended, 0, 0, blended.width, blended.height, tbox.x, tbox.y, tbox.width, tbox.height);
+
+      // very simple color blending: draw with slight globalAlpha to help blend
+      // (already drawn; could run Poisson blending in server-side for perfect result)
+      ctx.restore();
+
+      hideOverlay();
+      setSmallStatus('Selesai — cek hasil');
+      log('Face swap selesai. Untuk hasil lebih halus, minta fitur seamless cloning / Poisson blend (server-side).');
+
+    }catch(err){
+      hideOverlay();
+      log('Error during swap: ' + err);
+      alert('Terjadi kesalahan: ' + err.message);
     }
+  };
 
-    /* ==================== LOAD MODELS ==================== */
-    async function loadModels() {
-        showLoading("Loading AI Models...");
-        await Promise.all([
-            faceapi.nets.tinyFaceDetector.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models"),
-            faceapi.nets.faceLandmark68Net.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models"),
-            faceapi.nets.faceRecognitionNet.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models"),
-            faceapi.nets.faceExpressionNet.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models")
-        ]);
-        hideLoading();
-    }
+  // If page loads, set small status and auto-check file protocol
+  (function init(){
+    setSmallStatus('Ready');
+    log('Inisialisasi siap. Pastikan membuka via HTTP dan koneksi internet tersedia untuk load model.');
+    // optional: auto-load models on open? We'll not auto-run to avoid long waits on slow connection
+    // if you want auto-load, uncomment:
+    // loadModelsWithTimeout(90000).catch(()=>{});
+  })();
 
-    loadModels();
-
-    /* ==================== PREVIEW FOTO ==================== */
-    function previewImage(input, imgElement) {
-        input.addEventListener("change", () => {
-            if (input.files && input.files[0]) {
-                imgElement.src = URL.createObjectURL(input.files[0]);
-                imgElement.style.display = "block";
-            }
-        });
-    }
-
-    previewImage(document.getElementById("img1Input"), document.getElementById("img1"));
-    previewImage(document.getElementById("img2Input"), document.getElementById("img2"));
-
-    /* ==================== PROSES SWAP ==================== */
-    document.getElementById("swapBtn").onclick = async () => {
-
-        const img1 = document.getElementById("img1");
-        const img2 = document.getElementById("img2");
-
-        if (!img1.src || !img2.src || img1.style.display === "none" || img2.style.display === "none") {
-            alert("Ayang, upload 2 foto dulu ya!");
-            return;
-        }
-
-        showLoading("Mendeteksi wajah...");
-
-        const det1 = await faceapi.detectAllFaces(img1, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
-        const det2 = await faceapi.detectAllFaces(img2, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
-
-        if (!det1.length || !det2.length) {
-            hideLoading();
-            alert("Tidak menemukan wajah pada salah satu foto!");
-            return;
-        }
-
-        showLoading("Melakukan face swap...");
-
-        const face1 = det1[0];
-        const face2 = det2[0];
-
-        const canvas = document.getElementById("output");
-        canvas.width = img1.width;
-        canvas.height = img1.height;
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img1, 0, 0, img1.width, img1.height);
-
-        const donorFace = await faceapi.extractFaces(img2, [face2.detection]);
-
-        if (donorFace.length > 0) {
-            ctx.drawImage(
-                donorFace[0],
-                face1.detection.box.x,
-                face1.detection.box.y,
-                face1.detection.box.width,
-                face1.detection.box.height
-            );
-        }
-
-        hideLoading();
-    };
-
+  // Extra: helpful console hints
+  console.log('DEBUG: Jika model gagal, jalankan server lokal dan/atau sediakan folder models lalu ubah loadFromUri ke "./models" di kodenya.');
 </script>
-
 </body>
 </html>
