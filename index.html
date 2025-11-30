@@ -2,51 +2,143 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rolling XII IPA 5</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Face Swap App</title>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: #222;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 25px;
+        }
+
+        img {
+            max-width: 320px;
+            border-radius: 10px;
+            border: 2px solid #444;
+        }
+
+        canvas {
+            border-radius: 10px;
+            border: 2px solid #444;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            border: none;
+            background: #00aaff;
+            color: white;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
 </head>
+
 <body>
-    <h1>ROLLING XII IPA 5</h1>
-    
-    <table>
-        <tr>
-            <th></th><th>A</th><th>B</th><th>C</th><th>D</th>
-        </tr>
-        <tr>
-            <td>1</td><td id="A1">-</td><td id="B1">-</td><td id="C1">-</td><td id="D1">-</td>
-        </tr>
-        <tr>
-            <td>2</td><td id="A2">-</td><td id="B2">-</td><td id="C2">-</td><td id="D2">-</td>
-        </tr>
-        <tr>
-            <td>3</td><td id="A3">-</td><td id="B3">-</td><td id="C3">-</td><td id="D3">-</td>
-        </tr>
-        <tr>
-            <td>4</td><td id="A4">-</td><td id="B4">-</td><td id="C4">-</td><td id="D4">-</td>
-        </tr>
-        <tr>
-            <td>5</td><td colspan="2"></td><td id="C5">-</td><td></td>
-        </tr>
-    </table>
 
-    <div class="input-section">
-        <h2>Masukkan Nomor Absen</h2>
-        <input type="text" id="absen" placeholder="Nomor Absen">
-        <button onclick="acakTempatDuduk()">Rolling</button>
-        <button onclick="restart()">Restart</button>
-        <button onclick="undo()">Undo</button>
+    <h1>Face Swap (Foto ke Foto)</h1>
+    <p>Upload 2 foto — deteksi wajah & tukar wajah otomatis.</p>
+
+    <div>
+        <input type="file" id="img1Input">
+        <input type="file" id="img2Input">
     </div>
 
-    <div id="wheelContainer">
-        <canvas id="wheelCanvas" width="300" height="300"></canvas>
+    <div class="container">
+        <div>
+            <h3>Foto Target (yang ingin diubah)</h3>
+            <img id="img1" />
+        </div>
+
+        <div>
+            <h3>Foto Donor (wajah pengganti)</h3>
+            <img id="img2" />
+        </div>
     </div>
 
-    <div class="class-list">
-        <button id="toggleClassList">Tampilkan Daftar Nama</button>
-        <ul id="namaKelas" class="hidden"></ul>
-    </div>
+    <button id="swapBtn">Tukar Wajah</button>
 
-    <script src="script.js"></script>
+    <h2>Hasil:</h2>
+    <canvas id="output"></canvas>
+
+<script>
+    // Load model-model face-api.js
+    Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models"),
+        faceapi.nets.faceLandmark68Net.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models"),
+        faceapi.nets.faceRecognitionNet.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models"),
+        faceapi.nets.faceExpressionNet.loadFromUri("https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/models")
+    ]).then(() => console.log("Model Loaded"));
+
+    function loadImage(input, imgElement) {
+        input.addEventListener("change", () => {
+            imgElement.src = URL.createObjectURL(input.files[0]);
+        });
+    }
+
+    loadImage(document.getElementById("img1Input"), document.getElementById("img1"));
+    loadImage(document.getElementById("img2Input"), document.getElementById("img2"));
+
+    document.getElementById("swapBtn").onclick = async () => {
+
+        const img1 = document.getElementById("img1");
+        const img2 = document.getElementById("img2");
+
+        if (!img1.src || !img2.src) {
+            alert("Ayang, upload 2 foto dulu ya!");
+            return;
+        }
+
+        // Deteksi wajah
+        const det1 = await faceapi.detectAllFaces(img1, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+        const det2 = await faceapi.detectAllFaces(img2, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+
+        if (!det1.length || !det2.length) {
+            alert("Tidak menemukan wajah pada salah satu foto!");
+            return;
+        }
+
+        console.log("Jumlah wajah pada foto 1:", det1.length);
+        console.log("Jumlah wajah pada foto 2:", det2.length);
+
+        // Untuk demo: ambil wajah pertama saja
+        const face1 = det1[0];
+        const face2 = det2[0];
+
+        const canvas = document.getElementById("output");
+        canvas.width = img1.width;
+        canvas.height = img1.height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img1, 0, 0, img1.width, img1.height);
+
+        // Face Swap Sederhana Menggunakan Transformasi Segitiga (Warping)
+        faceapi.draw.drawFaceLandmarks(canvas, [face1]); // optional debug
+
+        // ======= PROSES UTAMA (WARPING) =======
+        const alignedFace = await faceapi.extractFaces(img2, [face2.detection]);
+        if (alignedFace.length > 0) {
+            ctx.drawImage(alignedFace[0], 
+                face1.detection.box.x, 
+                face1.detection.box.y, 
+                face1.detection.box.width, 
+                face1.detection.box.height
+            );
+        }
+    };
+</script>
+
 </body>
 </html>
