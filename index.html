@@ -1,547 +1,393 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Ayang Face Swap — with Progress Bar</title>
-
-  <!-- Load face-api.js -->
-  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-
-  <style>
-    :root {
-      --bg: #0f0f12;
-      --card: #1c1c21;
-      --text: #e0e0e0;
-      --muted: #83838f;
-      --accent: #3b82f6;
-      --accent-hover: #2563eb;
-      --success: #10b981;
-    }
-
-    * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
-    
-    body {
-      margin: 0;
-      padding: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Segoe UI', Inter, system-ui, sans-serif;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Layout Utama */
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 16px;
-      width: 100%;
-      flex: 1;
-      overflow-y: auto;
-    }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      padding-bottom: 12px;
-    }
-
-    h1 { margin: 0; font-size: 1.25rem; font-weight: 700; color: #fff; }
-    .badge { 
-      font-size: 0.75rem; 
-      background: rgba(255,255,255,0.1); 
-      padding: 4px 8px; 
-      border-radius: 6px; 
-      color: var(--muted);
-    }
-    .badge.ready { color: var(--success); background: rgba(16, 185, 129, 0.15); }
-
-    /* Grid Input */
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    @media (max-width: 600px) {
-      .grid { grid-template-columns: 1fr; }
-    }
-
-    /* Card Style */
-    .card {
-      background: var(--card);
-      border-radius: 12px;
-      padding: 12px;
-      border: 1px solid rgba(255,255,255,0.05);
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .card-title { font-size: 0.9rem; font-weight: 600; color: var(--muted); }
-
-    /* Custom File Input */
-    .file-input-wrapper {
-      position: relative;
-      overflow: hidden;
-      display: inline-block;
-      width: 100%;
-    }
-    .file-btn {
-      width: 100%;
-      background: rgba(255,255,255,0.05);
-      border: 1px dashed rgba(255,255,255,0.2);
-      color: var(--text);
-      padding: 10px;
-      border-radius: 8px;
-      text-align: center;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-    .file-btn:active { background: rgba(255,255,255,0.1); }
-    input[type=file] {
-      font-size: 100px;
-      position: absolute;
-      left: 0; top: 0; opacity: 0;
-      width: 100%; height: 100%;
-      cursor: pointer;
-    }
-
-    /* Preview Image */
-    .preview-box {
-      width: 100%;
-      height: 200px;
-      background: #000;
-      border-radius: 8px;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-    .preview-box img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-    .preview-placeholder { font-size: 0.8rem; color: var(--muted); }
-
-    /* Action Area */
-    .actions {
-      margin-top: 20px;
-      display: flex;
-      gap: 10px;
-    }
-    
-    button {
-      flex: 1;
-      padding: 14px;
-      border-radius: 10px;
-      border: none;
-      font-weight: 600;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: transform 0.1s;
-    }
-    button:active { transform: scale(0.98); }
-
-    .btn-primary { background: var(--accent); color: white; }
-    .btn-secondary { background: rgba(255,255,255,0.1); color: var(--text); }
-    .btn-primary:disabled { background: var(--muted); opacity: 0.5; cursor: not-allowed; }
-
-    /* Result Canvas */
-    .result-container {
-      margin-top: 24px;
-      text-align: center;
-      background: var(--card);
-      padding: 16px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.05);
-      display: none; /* Hidden by default */
-    }
-    .result-container.show { display: block; }
-    canvas {
-      max-width: 100%;
-      height: auto;
-      border-radius: 8px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    }
-
-    /* OVERLAY LOADING */
-    #overlay {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.85);
-      backdrop-filter: blur(5px);
-      z-index: 9999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      visibility: hidden; opacity: 0;
-      transition: 0.3s;
-    }
-    #overlay.active { visibility: visible; opacity: 1; }
-
-    .loader-content {
-      background: #222;
-      padding: 24px;
-      border-radius: 16px;
-      width: 280px;
-      text-align: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      border: 1px solid rgba(255,255,255,0.1);
-    }
-    
-    /* Progress Bar */
-    .progress-track {
-      width: 100%;
-      height: 6px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 10px;
-      margin: 16px 0 8px 0;
-      overflow: hidden;
-    }
-    .progress-fill {
-      height: 100%;
-      background: var(--accent);
-      width: 0%;
-      transition: width 0.3s ease;
-    }
-    .loading-text { font-size: 0.9rem; margin-bottom: 4px; }
-    .loading-percent { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
-
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Face Swap</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MediaPipe Tasks Vision CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js" crossorigin="anonymous"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f7f7f7; }
+        .container { max-width: 900px; }
+        #liveVideo { display: none; /* Video input hidden, drawn to canvas */ }
+        .canvas-output {
+            background-color: #333;
+            border: 3px solid #0056b3;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            width: 100%;
+            height: auto;
+        }
+    </style>
 </head>
-<body>
+<body class="p-4 sm:p-8 flex justify-center">
 
-  <!-- Overlay Loading -->
-  <div id="overlay" class="active">
-    <div class="loader-content">
-      <div class="loading-text" id="loadingStatus">Menyiapkan AI...</div>
-      <div class="loading-percent" id="loadingPercent">0%</div>
-      <div class="progress-track">
-        <div class="progress-fill" id="progressFill"></div>
-      </div>
-      <div style="font-size:0.75rem; color:#666; margin-top:10px">
-        Mohon tunggu, memuat model wajah...
-      </div>
-      <button id="retryBtn" class="btn-secondary" style="margin-top:15px; font-size:0.8rem; padding:8px; display:none;">Ulangi Load</button>
-    </div>
-  </div>
+    <div class="container w-full">
+        <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">
+            🎭 Web Face Swapper
+        </h1>
+        <p class="text-center text-gray-600 mb-6">
+            Langkah 1: Pilih Foto Wajah Sumber. Langkah 2: Izinkan Akses Kamera.
+        </p>
 
-  <div class="container">
-    <header>
-      <h1>Ayang Face Swap</h1>
-      <div id="statusBadge" class="badge">Initializing...</div>
-    </header>
-
-    <div class="grid">
-      <!-- Target Image -->
-      <div class="card">
-        <div class="card-title">1. Target (Badan/Wajah Asli)</div>
-        <div class="preview-box" id="previewContainer1">
-          <span class="preview-placeholder">Pilih Foto</span>
+        <!-- Control Panel -->
+        <div class="bg-white p-6 rounded-xl shadow-lg mb-6 flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 sm:space-x-4">
+            <input type="file" id="srcFileInput" accept="image/jpeg, image/png" class="
+                block w-full sm:w-auto text-sm text-gray-700
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-semibold
+                file:bg-indigo-50 file:text-indigo-700
+                hover:file:bg-indigo-100
+            "/>
+            <p id="statusMsg" class="text-sm font-medium text-red-600">
+                Menunggu foto sumber...
+            </p>
         </div>
-        <div class="file-input-wrapper">
-          <div class="file-btn">Upload Foto Target</div>
-          <input type="file" id="img1Input" accept="image/*">
+
+        <!-- Video and Canvas Output -->
+        <div class="relative w-full aspect-video">
+            <video id="liveVideo" autoplay playsinline></video>
+            <canvas id="outputCanvas" class="canvas-output"></canvas>
+            <canvas id="srcCanvas" class="hidden"></canvas>
+            <canvas id="warpedCanvas" class="hidden"></canvas>
         </div>
-      </div>
 
-      <!-- Donor Image -->
-      <div class="card">
-        <div class="card-title">2. Donor (Wajah Pengganti)</div>
-        <div class="preview-box" id="previewContainer2">
-          <span class="preview-placeholder">Pilih Foto</span>
+        <div id="loadingIndicator" class="hidden text-center mt-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
+            <p class="text-indigo-600 mt-2">Memuat model & memulai kamera...</p>
         </div>
-        <div class="file-input-wrapper">
-          <div class="file-btn">Upload Foto Donor</div>
-          <input type="file" id="img2Input" accept="image/*">
-        </div>
-      </div>
+
     </div>
 
-    <div class="actions">
-      <button id="swapBtn" class="btn-primary" disabled>Tukar Wajah</button>
-      <button id="resetBtn" class="btn-secondary">Reset</button>
-    </div>
+    <script>
+        const { FaceLandmarker, FilesetResolver } = window.MediaPipeTasksVision;
 
-    <div class="result-container" id="resultArea">
-      <h3 style="margin-top:0; color:var(--muted)">Hasil Swap</h3>
-      <canvas id="outputCanvas"></canvas>
-      <div style="margin-top:12px">
-        <a id="downloadLink" href="#" style="color:var(--accent); text-decoration:none; font-size:0.9rem;">Download Hasil</a>
-      </div>
-    </div>
+        // --- Konfigurasi dan Elemen DOM ---
+        const liveVideo = document.getElementById('liveVideo');
+        const outputCanvas = document.getElementById('outputCanvas');
+        const srcCanvas = document.getElementById('srcCanvas');
+        const warpedCanvas = document.getElementById('warpedCanvas');
+        const srcFileInput = document.getElementById('srcFileInput');
+        const statusMsg = document.getElementById('statusMsg');
+        const loadingIndicator = document.getElementById('loadingIndicator');
 
-    <div style="margin-top:30px; font-size:0.75rem; color:var(--muted); text-align:center; line-height:1.5;">
-      Note: Aplikasi ini berjalan sepenuhnya di browser Anda (Client Side).<br>
-      Foto tidak dikirim ke server manapun. Gunakan pencahayaan yang mirip untuk hasil terbaik.
-    </div>
-  </div>
+        const ctx = outputCanvas.getContext('2d');
+        const srcCtx = srcCanvas.getContext('2d');
+        const warpedCtx = warpedCanvas.getContext('2d');
 
-<script>
-  // --- KONFIGURASI & UI ---
-  const UI = {
-    overlay: document.getElementById('overlay'),
-    loadingStatus: document.getElementById('loadingStatus'),
-    loadingPercent: document.getElementById('loadingPercent'),
-    progressFill: document.getElementById('progressFill'),
-    retryBtn: document.getElementById('retryBtn'),
-    statusBadge: document.getElementById('statusBadge'),
-    swapBtn: document.getElementById('swapBtn'),
-    resetBtn: document.getElementById('resetBtn'),
-    resultArea: document.getElementById('resultArea'),
-    canvas: document.getElementById('outputCanvas'),
-    downloadLink: document.getElementById('downloadLink')
-  };
+        let faceLandmarker;
+        let running = false;
+        let lastVideoTime = -1;
 
-  const INPUTS = {
-    target: { input: document.getElementById('img1Input'), container: document.getElementById('previewContainer1'), img: null },
-    donor: { input: document.getElementById('img2Input'), container: document.getElementById('previewContainer2'), img: null }
-  };
+        // Data Wajah Sumber
+        let srcLandmarks = null;
+        // Triangles: menggunakan subset indeks landmark wajah untuk triangulasi sederhana
+        // (Nose, Left Eye, Right Eye, Left Cheek, Right Cheek, Chin)
+        const TRIANGLES = [
+            [1, 33, 263], // Top Face
+            [33, 1, 133], // Left Mid
+            [263, 1, 362], // Right Mid
+            [1, 14, 133], // Lower Left Nose
+            [1, 14, 362], // Lower Right Nose
+            [14, 172, 397], // Chin
+            [14, 133, 172], // Lower Left Cheek
+            [14, 362, 397], // Lower Right Cheek
+        ];
+        const CONVEX_HULL_INDICES = [
+            10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 169, 177, 215, 132, 253, 69, 109, 37, 78, 52, 103, 71, 108, 107, 66, 105, 63, 157, 145, 146, 163, 170, 
+            396, 405, 412, 403, 394, 339, 298, 333, 358, 442, 441, 461, 443, 448, 458, 459, 460, 462, 464, 465, 467, 468, 469, 470, 471, 472, 473, 474, 475, 476, 477, 478, 479, 480, 481, 482, 483, 484, 485, 486, 487, 488, 489
+        ];
+        
+        const MIN_FEATHER_DISTANCE = 5; // Untuk blending (seamless clone replacement)
 
-  let modelsLoaded = false;
+        /**
+         * Mengambil 6 parameter Affine Transformation Matrix (a, b, c, d, e, f)
+         * dari 3 titik sumber (t_src) ke 3 titik tujuan (t_dst).
+         * Matrix Canvas: x_new = a*x + c*y + e, y_new = b*x + d*y + f
+         * @param {Array<Array<number>>} t_src - 3 titik sumber [[x1, y1], [x2, y2], [x3, y3]]
+         * @param {Array<Array<number>>} t_dst - 3 titik tujuan
+         * @returns {Array<number>|null} [a, b, c, d, e, f] atau null jika segitiga degenerasi
+         */
+        function getAffineMatrix(t_src, t_dst) {
+            const [[x1, y1], [x2, y2], [x3, y3]] = t_src;
+            const [[x1p, y1p], [x2p, y2p], [x3p, y3p]] = t_dst;
 
-  // --- LOGIKA LOADING MODEL DENGAN PERSENTASE ---
-  async function loadModels() {
-    UI.retryBtn.style.display = 'none';
-    const modelBase = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
-    
-    // Kita memuat 3 model utama. Kita akan hitung progress per model.
-    // 1. TinyFaceDetector (deteksi wajah ringan)
-    // 2. FaceLandmark68Net (titik koordinat wajah)
-    // 3. FaceRecognitionNet (opsional, tapi bagus untuk alignment)
-    
-    const tasks = [
-      { name: 'Detector', promise: faceapi.nets.tinyFaceDetector.loadFromUri(modelBase) },
-      { name: 'Landmarks', promise: faceapi.nets.faceLandmark68Net.loadFromUri(modelBase) },
-      { name: 'Recognition', promise: faceapi.nets.faceRecognitionNet.loadFromUri(modelBase) }
-    ];
+            const D = x1 * (y3 - y2) + x2 * (y1 - y3) + x3 * (y2 - y1);
+            if (Math.abs(D) < 1e-6) return null; // Degenerate triangle
 
-    let completed = 0;
-    const total = tasks.length;
+            // Matrix coefficients (m11, m21, m12, m22, m13, m23) for Canvas setTransform
+            // m11 (a)
+            const m11 = (x1p * (y2 - y3) + x2p * (y3 - y1) + x3p * (y1 - y2)) / D;
+            // m21 (b)
+            const m21 = (y1p * (y2 - y3) + y2p * (y3 - y1) + y3p * (y1 - y2)) / D;
+            // m12 (c)
+            const m12 = (x1p * (x3 - x2) + x2p * (x1 - x3) + x3p * (x2 - x1)) / D;
+            // m22 (d)
+            const m22 = (y1p * (x3 - x2) + y2p * (x1 - x3) + y3p * (x2 - x1)) / D;
+            // m13 (e)
+            const m13 = (x1p * (x2 * y3 - x3 * y2) + x2p * (x3 * y1 - x1 * y3) + x3p * (x1 * y2 - x2 * y1)) / D;
+            // m23 (f)
+            const m23 = (y1p * (x2 * y3 - x3 * y2) + y2p * (x3 * y1 - x1 * y3) + y3p * (x1 * y2 - x2 * y1)) / D;
 
-    try {
-      // Jalankan semua promise, tapi update progress setiap kali satu selesai
-      await Promise.all(tasks.map(task => {
-        return task.promise.then(() => {
-          completed++;
-          const percent = Math.floor((completed / total) * 100);
-          updateLoadingUI(percent, `Memuat ${task.name}...`);
-        });
-      }));
-
-      // Selesai
-      updateLoadingUI(100, 'Siap!');
-      setTimeout(() => {
-        UI.overlay.classList.remove('active');
-        UI.statusBadge.textContent = "AI Ready";
-        UI.statusBadge.classList.add('ready');
-        modelsLoaded = true;
-        checkReady();
-      }, 500);
-
-    } catch (err) {
-      console.error(err);
-      UI.loadingStatus.textContent = "Gagal memuat model";
-      UI.loadingPercent.textContent = "Error";
-      UI.loadingPercent.style.color = "#ef4444";
-      UI.retryBtn.style.display = 'inline-block';
-      alert("Gagal memuat model AI. Pastikan internet lancar dan tidak membuka file HTML langsung (gunakan local server).");
-    }
-  }
-
-  function updateLoadingUI(percent, text) {
-    UI.loadingPercent.textContent = percent + '%';
-    UI.progressFill.style.width = percent + '%';
-    UI.loadingStatus.textContent = text;
-  }
-
-  // --- IMAGE HANDLING ---
-  function handleImageUpload(type, event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        // Resize jika terlalu besar untuk performa mobile
-        const maxDim = 1024;
-        let w = img.width, h = img.height;
-        if (w > maxDim || h > maxDim) {
-          const ratio = Math.min(maxDim / w, maxDim / h);
-          w = w * ratio;
-          h = h * ratio;
+            return [m11, m21, m12, m22, m13, m23]; // [a, b, c, d, e, f]
         }
 
-        INPUTS[type].img = img; // Simpan elemen img asli (bisa di resize on the fly saat proses)
+        /**
+         * Menggambar segitiga dari gambar sumber ke canvas warp dengan transformasi affine.
+         */
+        function warpTriangle(t_src_coords, t_tgt_coords) {
+            const matrix = getAffineMatrix(t_src_coords, t_tgt_coords);
+            if (!matrix) return;
+
+            // 1. Dapatkan Bounding Box dari segitiga target (t_tgt_coords)
+            const x_coords = t_tgt_coords.map(p => p[0]);
+            const y_coords = t_tgt_coords.map(p => p[1]);
+            const minX = Math.min(...x_coords);
+            const minY = Math.min(...y_coords);
+            const maxX = Math.max(...x_coords);
+            const maxY = Math.max(...y_coords);
+            const rect = [minX, minY, maxX - minX, maxY - minY];
+
+            // 2. Terapkan Mask pada canvas warp (untuk menggambar hanya dalam batas segitiga)
+            warpedCtx.save();
+            warpedCtx.beginPath();
+            warpedCtx.moveTo(t_tgt_coords[0][0], t_tgt_coords[0][1]);
+            warpedCtx.lineTo(t_tgt_coords[1][0], t_tgt_coords[1][1]);
+            warpedCtx.lineTo(t_tgt_coords[2][0], t_tgt_coords[2][1]);
+            warpedCtx.closePath();
+            warpedCtx.clip();
+
+            // 3. Terapkan Affine Transformation
+            // Matriks yang kita hitung mentransformasikan *dari* sumber *ke* target.
+            // Untuk menggambar, kita perlu matriks invers yang mentransformasikan *dari* target *ke* sumber
+            // agar `drawImage` dapat mengambil piksel yang benar dari sumber.
+            // Namun, dalam kasus sederhana seperti ini, kita bisa menggunakan teknik yang lebih mudah
+            // yaitu memanfaatkan setTransform(a, b, c, d, e, f) yang bekerja seperti yang diharapkan
+            // saat menggunakan image sebagai sumber.
+
+            // Reset Transform dan terapkan matriks
+            warpedCtx.setTransform(1, 0, 0, 1, 0, 0);
+            warpedCtx.transform(...matrix);
+
+            // 4. Gambar seluruh gambar sumber
+            // Kita harus menggambar seluruh gambar sumber (srcCanvas) agar transformasi Affine
+            // yang di-set di atas bekerja dengan benar di Canvas.
+            warpedCtx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height);
+            
+            warpedCtx.restore();
+            warpedCtx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform untuk loop berikutnya
+        }
         
-        // Tampilkan preview
-        INPUTS[type].container.innerHTML = '';
-        const previewImg = img.cloneNode();
-        previewImg.style.width = '100%';
-        previewImg.style.height = '100%';
-        previewImg.style.objectFit = 'contain';
-        INPUTS[type].container.appendChild(previewImg);
+        /**
+         * Menggambar mask dengan efek feathering (blending) untuk menggantikan seamlessClone.
+         */
+        function drawFeatheredMask(targetPoints, canvasWidth, canvasHeight) {
+            // 1. Buat mask hitam putih
+            const maskCanvas = document.createElement('canvas');
+            maskCanvas.width = canvasWidth;
+            maskCanvas.height = canvasHeight;
+            const maskCtx = maskCanvas.getContext('2d');
+            
+            maskCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+            maskCtx.fillStyle = 'black'; // Hitam (transparan)
+            
+            // 2. Gambar Convex Hull di mask (putih = area swap)
+            maskCtx.beginPath();
+            targetPoints.forEach((p, i) => {
+                const x = p[0];
+                const y = p[1];
+                if (i === 0) maskCtx.moveTo(x, y);
+                else maskCtx.lineTo(x, y);
+            });
+            maskCtx.closePath();
+            
+            // 3. Gunakan blur (gaussian blur) untuk feathering
+            maskCtx.filter = `blur(${MIN_FEATHER_DISTANCE}px)`; 
+            maskCtx.fillStyle = 'white'; 
+            maskCtx.fill(); 
+            maskCtx.filter = 'none';
 
-        checkReady();
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  }
+            // 4. Gambar mask ke canvas utama (sebagai alpha channel)
+            ctx.globalCompositeOperation = 'source-atop';
+            ctx.drawImage(maskCanvas, 0, 0);
+            ctx.globalCompositeOperation = 'source-over'; // Kembalikan default
+        }
 
-  INPUTS.target.input.addEventListener('change', (e) => handleImageUpload('target', e));
-  INPUTS.donor.input.addEventListener('change', (e) => handleImageUpload('donor', e));
 
-  function checkReady() {
-    if (modelsLoaded && INPUTS.target.img && INPUTS.donor.img) {
-      UI.swapBtn.disabled = false;
-      UI.swapBtn.textContent = "Tukar Wajah Sekarang";
-    } else {
-      UI.swapBtn.disabled = true;
-    }
-  }
+        /**
+         * Inisialisasi MediaPipe Face Landmarker.
+         */
+        async function createLandmarker() {
+            loadingIndicator.classList.remove('hidden');
+            statusMsg.textContent = "Memuat model Face Landmarker...";
 
-  // --- CORE SWAP LOGIC ---
-  UI.swapBtn.onclick = async () => {
-    if (!modelsLoaded) return;
-    
-    // Tampilkan loading lagi
-    UI.overlay.classList.add('active');
-    updateLoadingUI(0, 'Menganalisis Wajah...');
-    
-    // Delay sedikit agar UI render
-    setTimeout(async () => {
-      try {
-        await processFaceSwap();
-      } catch (error) {
-        alert("Terjadi kesalahan: " + error.message);
-        console.error(error);
-      } finally {
-        UI.overlay.classList.remove('active');
-      }
-    }, 100);
-  };
+            const filesetResolver = await FilesetResolver.forVisionTasks(
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+            );
+            faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+                baseOptions: {
+                    modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                    delegate: "GPU"
+                },
+                outputFaceBlendshapes: true,
+                runningMode: "VIDEO",
+                numFaces: 1
+            });
+            statusMsg.textContent = "Model siap. Unggah foto sumber.";
+            loadingIndicator.classList.add('hidden');
+        }
 
-  async function processFaceSwap() {
-    const targetImg = INPUTS.target.img;
-    const donorImg = INPUTS.donor.img;
+        /**
+         * Mengambil landmark wajah dari gambar sumber.
+         */
+        function extractSourceLandmarks(imageElement) {
+            return new Promise((resolve, reject) => {
+                const results = faceLandmarker.detect(imageElement);
+                if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+                    const landmarks = results.faceLandmarks[0].map(p => [p.x * srcCanvas.width, p.y * srcCanvas.height]);
+                    resolve(landmarks);
+                } else {
+                    reject("❌ Tidak menemukan wajah pada foto sumber.");
+                }
+            });
+        }
 
-    // Opsi deteksi (TinyFace untuk performa HP)
-    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 });
+        /**
+         * Memproses file input foto sumber.
+         */
+        srcFileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
 
-    // 1. Deteksi Target
-    updateLoadingUI(20, 'Scan Target...');
-    const targetDetection = await faceapi.detectSingleFace(targetImg, options).withFaceLandmarks();
-    
-    if (!targetDetection) throw new Error("Wajah tidak ditemukan di foto Target.");
+            statusMsg.textContent = "Memuat foto sumber...";
+            const img = new Image();
+            img.onload = async () => {
+                try {
+                    // Set dimensi canvas sumber (ukuran asli foto)
+                    srcCanvas.width = img.width;
+                    srcCanvas.height = img.height;
+                    srcCtx.drawImage(img, 0, 0);
 
-    // 2. Deteksi Donor
-    updateLoadingUI(50, 'Scan Donor...');
-    const donorDetection = await faceapi.detectSingleFace(donorImg, options).withFaceLandmarks();
+                    // Ekstraksi Landmark
+                    srcLandmarks = await extractSourceLandmarks(img);
+                    statusMsg.textContent = `✔ Foto Sumber siap. Landmark ditemukan (${srcLandmarks.length} titik).`;
 
-    if (!donorDetection) throw new Error("Wajah tidak ditemukan di foto Donor.");
+                    // Mulai webcam setelah sumber siap
+                    if (!running) {
+                        startWebcam();
+                    }
 
-    // 3. Persiapan Canvas
-    updateLoadingUI(75, 'Menggabungkan...');
-    const canvas = UI.canvas;
-    const ctx = canvas.getContext('2d');
-    
-    // Set ukuran canvas sesuai target
-    canvas.width = targetImg.width;
-    canvas.height = targetImg.height;
+                } catch (error) {
+                    statusMsg.textContent = error;
+                    srcLandmarks = null;
+                }
+            };
+            img.src = URL.createObjectURL(file);
+        });
 
-    // Gambar target asli dulu
-    ctx.drawImage(targetImg, 0, 0);
+        /**
+         * Memulai webcam dan loop pemrosesan.
+         */
+        function startWebcam() {
+            if (running) return;
+            statusMsg.textContent = "Meminta akses kamera...";
 
-    // --- LOGIKA COPY & MASKING SEDERHANA ---
-    
-    // Ambil landmark
-    const tLandmarks = targetDetection.landmarks;
-    const dLandmarks = donorDetection.landmarks;
-    
-    // Hitung Bounding Box wajah di target (untuk penempatan)
-    const tBox = targetDetection.detection.box;
-    // Hitung Bounding Box wajah di donor (untuk crop)
-    const dBox = donorDetection.detection.box;
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then((stream) => {
+                    liveVideo.srcObject = stream;
+                    liveVideo.onloadedmetadata = () => {
+                        liveVideo.play();
+                        // Set Canvas size sesuai rasio video (misal 640x480)
+                        const w = liveVideo.videoWidth;
+                        const h = liveVideo.videoHeight;
+                        outputCanvas.width = w;
+                        outputCanvas.height = h;
+                        warpedCanvas.width = w;
+                        warpedCanvas.height = h;
+                        
+                        running = true;
+                        statusMsg.textContent = "✔ Kamera Aktif. Arahkan wajah Anda ke kamera!";
+                        requestAnimationFrame(predictWebcam);
+                    };
+                })
+                .catch(err => {
+                    statusMsg.textContent = `❌ Gagal mengakses kamera: ${err.name}`;
+                });
+        }
 
-    // Buat Canvas temporary untuk donor yang sudah di-crop
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-    // Beri margin sedikit agar tidak terlalu ngepas
-    const margin = 0.1; 
-    const sWidth = dBox.width * (1 + margin*2);
-    const sHeight = dBox.height * (1 + margin*2);
-    const sX = dBox.x - (dBox.width * margin);
-    const sY = dBox.y - (dBox.height * margin);
+        /**
+         * Loop prediksi dan rendering utama.
+         */
+        function predictWebcam() {
+            if (!running) return;
 
-    tempCanvas.width = sWidth;
-    tempCanvas.height = sHeight;
+            // Gambar frame video ke canvas utama sebagai latar belakang
+            ctx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+            ctx.drawImage(liveVideo, 0, 0, outputCanvas.width, outputCanvas.height);
+            
+            // Kosongkan canvas warp
+            warpedCtx.clearRect(0, 0, warpedCanvas.width, warpedCanvas.height);
 
-    // 1. Gambar wajah donor ke temp canvas
-    tempCtx.drawImage(donorImg, sX, sY, sWidth, sHeight, 0, 0, sWidth, sHeight);
 
-    // 2. Buat Masking (Bentuk Oval Halus) di temp canvas agar tidak kotak
-    tempCtx.globalCompositeOperation = 'destination-in';
-    tempCtx.beginPath();
-    // Gunakan ellipse sederhana yang pas di tengah temp canvas
-    tempCtx.ellipse(sWidth/2, sHeight/2, sWidth*0.4, sHeight*0.45, 0, 0, Math.PI * 2);
-    tempCtx.fillStyle = 'black';
-    tempCtx.fill();
-    // Reset composite
-    tempCtx.globalCompositeOperation = 'source-over';
+            if (srcLandmarks && faceLandmarker) {
+                let startTimeMs = performance.now();
+                if (lastVideoTime !== liveVideo.currentTime) {
+                    lastVideoTime = liveVideo.currentTime;
+                    const results = faceLandmarker.detectForVideo(liveVideo, startTimeMs);
 
-    // 3. Tempel Temp Canvas ke Target Utama
-    // Kita perlu scale tempCanvas agar pas dengan ukuran wajah target
-    const tWidth = tBox.width * (1 + margin*2);
-    const tHeight = tBox.height * (1 + margin*2);
-    const tX = tBox.x - (tBox.width * margin);
-    const tY = tBox.y - (tBox.height * margin);
+                    if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+                        const targetLandmarks = results.faceLandmarks[0].map(p => 
+                            [p.x * outputCanvas.width, p.y * outputCanvas.height]
+                        );
+                        
+                        // 1. Warping Triangle (Face Swap)
+                        TRIANGLES.forEach(triIndices => {
+                            const t_src_coords = triIndices.map(i => srcLandmarks[i]);
+                            const t_tgt_coords = triIndices.map(i => targetLandmarks[i]);
+                            warpTriangle(t_src_coords, t_tgt_coords);
+                        });
+                        
+                        // 2. Blending (Convex Hull + Feathering)
+                        const hullPoints = CONVEX_HULL_INDICES.map(i => targetLandmarks[i]);
+                        
+                        // Gambar hasil warp ke canvas utama
+                        // Blending: Gunakan globalAlpha untuk mensimulasikan blending
+                        ctx.save();
+                        
+                        // Ini akan menggambar mask (convex hull) yang memburam (feathering) di sekelilingnya, 
+                        // lalu hanya bagian di dalam mask yang akan menampilkan wajah swap.
+                        
+                        // Terapkan mask feathered
+                        drawFeatheredMask(hullPoints, outputCanvas.width, outputCanvas.height);
+                        
+                        // Gabungkan gambar asli (target) dengan gambar yang di-warp (sumber) menggunakan mask
+                        // Di sini, kita sudah menggambar frame asli, jadi kita hanya perlu menggambar warped di atasnya
+                        // dengan mask yang mengontrol area.
+                        
+                        ctx.drawImage(warpedCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
 
-    // Optional: Global Alpha untuk blending sedikit jika warna kulit beda jauh
-    // ctx.globalAlpha = 0.9; 
-    
-    ctx.drawImage(tempCanvas, 0, 0, sWidth, sHeight, tX, tY, tWidth, tHeight);
-    // ctx.globalAlpha = 1.0;
+                        ctx.restore();
+                        
+                        statusMsg.textContent = "✔ Wajah terdeteksi dan di-swap! (Mode Sederhana)";
 
-    // Selesai
-    updateLoadingUI(100, 'Selesai!');
-    UI.resultArea.classList.add('show');
-    UI.resultArea.scrollIntoView({ behavior: 'smooth' });
-    
-    // Siapkan link download
-    UI.downloadLink.href = canvas.toDataURL("image/jpeg");
-    UI.downloadLink.download = "hasil-swap.jpg";
-  }
+                    } else {
+                        statusMsg.textContent = "Wajah tidak terdeteksi. Silakan posisikan wajah Anda.";
+                    }
+                }
+            } else if (srcLandmarks) {
+                statusMsg.textContent = "✔ Foto sumber siap. Menunggu kamera...";
+            }
 
-  // Reset
-  UI.resetBtn.onclick = () => {
-    INPUTS.target.img = null;
-    INPUTS.donor.img = null;
-    INPUTS.target.input.value = '';
-    INPUTS.donor.input.value = '';
-    INPUTS.target.container.innerHTML = '<span class="preview-placeholder">Pilih Foto</span>';
-    INPUTS.donor.container.innerHTML = '<span class="preview-placeholder">Pilih Foto</span>';
-    UI.resultArea.classList.remove('show');
-    const ctx = UI.canvas.getContext('2d');
-    ctx.clearRect(0,0,UI.canvas.width, UI.canvas.height);
-    checkReady();
-  };
+            requestAnimationFrame(predictWebcam);
+        }
 
-  UI.retryBtn.onclick = loadModels;
+        // --- Inisialisasi ---
+        createLandmarker();
+    </script>
 
-  // Mulai Load saat halaman dibuka
-  window.addEventListener('DOMContentLoaded', loadModels);
-
-</script>
 </body>
 </html>
-
