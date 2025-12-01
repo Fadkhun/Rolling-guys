@@ -223,6 +223,9 @@
          */
         async function createLandmarker() {
             loadingIndicator.classList.remove('hidden');
+            // Pastikan status default adalah merah (peringatan/menunggu)
+            statusMsg.classList.remove('text-yellow-600', 'text-green-600', 'font-bold');
+            statusMsg.classList.add('text-red-600');
             statusMsg.textContent = "Memuat model Face Landmarker...";
 
             const filesetResolver = await FilesetResolver.forVisionTasks(
@@ -263,7 +266,11 @@
             const file = event.target.files[0];
             if (!file) return;
 
+            // Reset status ke merah sebelum memuat file baru
+            statusMsg.classList.remove('text-yellow-600', 'text-green-600', 'font-bold');
+            statusMsg.classList.add('text-red-600');
             statusMsg.textContent = "Memuat foto sumber...";
+            
             const img = new Image();
             img.onload = async () => {
                 try {
@@ -274,6 +281,9 @@
 
                     // Ekstraksi Landmark
                     srcLandmarks = await extractSourceLandmarks(img);
+                    
+                    statusMsg.classList.remove('text-red-600', 'text-yellow-600', 'font-bold');
+                    statusMsg.classList.add('text-green-600');
                     statusMsg.textContent = `✔ Foto Sumber siap. Landmark ditemukan (${srcLandmarks.length} titik).`;
 
                     // Mulai webcam setelah sumber siap
@@ -282,6 +292,8 @@
                     }
 
                 } catch (error) {
+                    statusMsg.classList.remove('text-yellow-600', 'text-green-600', 'font-bold');
+                    statusMsg.classList.add('text-red-600');
                     statusMsg.textContent = error;
                     srcLandmarks = null;
                 }
@@ -294,7 +306,12 @@
          */
         function startWebcam() {
             if (running) return;
-            statusMsg.textContent = "Meminta akses kamera...";
+            
+            // --- Notifikasi Permintaan Izin Kamera ---
+            statusMsg.classList.remove('text-red-600', 'text-green-600');
+            statusMsg.classList.add('text-yellow-600', 'font-bold');
+            statusMsg.textContent = "TUNGGU! Jendela izin kamera browser akan muncul di pojok atas. Silakan 'Izinkan' untuk melanjutkan.";
+            // ----------------------------------------
 
             navigator.mediaDevices.getUserMedia({ video: true })
                 .then((stream) => {
@@ -310,12 +327,20 @@
                         warpedCanvas.height = h;
                         
                         running = true;
+                        
+                        // Notifikasi Sukses
+                        statusMsg.classList.remove('text-red-600', 'text-yellow-600', 'font-bold');
+                        statusMsg.classList.add('text-green-600');
                         statusMsg.textContent = "✔ Kamera Aktif. Arahkan wajah Anda ke kamera!";
+                        
                         requestAnimationFrame(predictWebcam);
                     };
                 })
                 .catch(err => {
-                    statusMsg.textContent = `❌ Gagal mengakses kamera: ${err.name}`;
+                    // Notifikasi Gagal
+                    statusMsg.classList.remove('text-yellow-600', 'text-green-600', 'font-bold');
+                    statusMsg.classList.add('text-red-600');
+                    statusMsg.textContent = `❌ Gagal mengakses kamera: ${err.name}. Pastikan Anda mengizinkan akses kamera di prompt browser.`;
                 });
         }
 
@@ -372,10 +397,21 @@
 
                         ctx.restore();
                         
-                        statusMsg.textContent = "✔ Wajah terdeteksi dan di-swap! (Mode Sederhana)";
+                        // Jaga agar status tetap hijau/sukses saat wajah terdeteksi
+                        if (statusMsg.classList.contains('text-yellow-600') || statusMsg.classList.contains('text-red-600')) {
+                            statusMsg.classList.remove('text-red-600', 'text-yellow-600', 'font-bold');
+                            statusMsg.classList.add('text-green-600');
+                            statusMsg.textContent = "✔ Kamera Aktif. Wajah terdeteksi dan di-swap! (Mode Sederhana)";
+                        } else {
+                            statusMsg.textContent = "✔ Wajah terdeteksi dan di-swap! (Mode Sederhana)";
+                        }
+
 
                     } else {
-                        statusMsg.textContent = "Wajah tidak terdeteksi. Silakan posisikan wajah Anda.";
+                        // Jaga agar status tetap hijau/sukses setelah kamera aktif, walau wajah tidak terdeteksi
+                        if (statusMsg.classList.contains('text-green-600')) {
+                            statusMsg.textContent = "Kamera Aktif. Wajah tidak terdeteksi. Silakan posisikan wajah Anda.";
+                        }
                     }
                 }
             } else if (srcLandmarks) {
